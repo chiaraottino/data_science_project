@@ -16,9 +16,10 @@ The repository is organized into several directories, each serving a distinct ro
 ```plaintext
 .
 ├── data/
-│ ├── student-mat.csv
-│ ├── student-por.csv
-│ └── metadata.txt
+│ ├── raw_data/
+│ │ ├── student_attitude_behaviour.csv
+│ ├── derived_data/
+│ │ ├── student_attitude_behaviour.csv
 ├── src/
 │ ├── data_preprocessing.py
 │ ├── exploratory_analysis.py
