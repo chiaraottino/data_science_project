@@ -108,7 +108,6 @@ student_data <- student_data %>%
     composite_score = (0.5 * pct_change_10th_to_12th) + (0.5 * pct_change_12th_to_college)
   )
 
-
 # ----- Review and save cleaned dataset -----
 head(student_data)
 str(student_data)
