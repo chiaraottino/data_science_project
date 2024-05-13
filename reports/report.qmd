@@ -1,1 +1,850 @@
+---
+title: "Student Performance Analysis Project"
+format: pdf
+editor: visual
+---
 
+## Abstract
+
+Our aim is to uncover insights from the "Student Attitude and Behavior" dataset downloadable from Kaggle <https://www.kaggle.com/datasets/susanta21/student-attitude-and-behavior> to better understand the factors influencing student performance and well-being.
+
+In this detailed study, we explore the complex connections between various academic and personal factors and how they affect college students' grades. We begin with a careful examination of the data, ensuring everything is accurate and relevant. We also perform checks to identify any unusual data points that might distort our analysis. Next, we analyze how different factors, such as study habits or family background, are interconnected to reveal underlying patterns.
+
+Following this, we look at grade variations across different academic levels to identify trends and discrepancies. We also investigate differences in academic performance between male and female students, enhancing our understanding of gender dynamics within education.
+
+Our study further examines the relationship between grades and various demographic and personal attributes, taking gender into account. To predict college grades effectively, we employ advanced modeling techniques like decision trees and random forests, which consider a mix of past academic performance and personal characteristics.
+
+By comparing the predictive power of models with and without previous grades, we isolate the impact of students' academic histories from other factors. This approach highlights the most significant predictors of academic success and offers insights for educational institutions to develop targeted support strategies.
+
+Our thorough analysis and use of modeling techniques aim to add to the discussion in educational research by offering a clearer understanding of what affects student performance. This can guide the creation of more effective educational policies and strategies.
+
+## Data Introduction
+
+This dataset comprises responses from university students collected via a Google form. It encapsulates various aspects of the students' academic and personal lives, aimed at understanding behaviors and preferences that might influence their academic performance and overall well-being. The dataset includes detailed information about each student's academic background, personal habits, and socio-economic status, such as whether they have completed certification courses, their department, academic achievements at different educational levels, daily routines, and social engagements.
+
+The data covers a range of variables:
+
+-   **Certification Course**: Indicates completion of any certification courses.
+-   **Gender**: The gender of the student.
+-   **Department**: Field of study.
+-   **Height (CM)** and **Weight (KG)**: Physical measurements.
+-   **Marks**: Academic performance in 10th grade, 12th grade, and college.
+-   **Hobbies**: Personal interests and activities.
+-   **Daily Studying Time**: Time spent studying each day.
+-   **Preferred Study Environment**: The environment where the student prefers to study.
+-   **Salary Expectation**: Expected future salary.
+-   **Degree Satisfaction**: Satisfaction with their chosen academic degree.
+-   **Career Willingness**: Willingness to pursue a career related to their degree.
+-   **Social Media & Video Usage**: Engagement with digital media.
+-   **Traveling Time**: Commute time to educational institution.
+-   **Stress Level**: Self-reported stress levels.
+-   **Financial Status**: Economic background.
+-   **Part-time Job**: Engagement in part-time work.
+
+This comprehensive data collection allows for a multifaceted analysis of factors impacting student life and academic outcomes.
+
+```{r data loading, results='hide', echo=FALSE, results='hide'}
+# ----- Load required libraries -----
+suppressPackageStartupMessages({
+  library(readr)
+  library(dplyr)
+  library(lubridate)
+  library(stringr)
+  library(here)
+  library(ggplot2)
+  library(gridExtra)
+  library(grid)
+  library(corrplot) 
+  library(GGally)
+  library(tidyr)
+  library(extrafont)
+  library(tidymodels)
+  library(rpart.plot)
+  library(tidyselect)
+})  
+
+# Set root directory correctly with here
+here::i_am("README.md")  # Specify the root of your project here
+
+# ----- Source all functions from the source folder -----
+source_path <- here::here("src")  # Path to the folder containing the scripts to source
+files <- list.files(path = source_path, pattern = "\\.R$", full.names = TRUE)
+for (file in files) {
+  source(file)  # Source each R script
+}
+
+# ----- Load the dataset -----
+file_path <- here("data", "raw_data", "Student Attitude and Behavior.csv")
+student_data <- read.csv(file_path, stringsAsFactors = TRUE)
+
+```
+
+### Data Cleaning
+
+The data cleaning process was crucial in preparing the dataset for detailed analysis. Initially, we conducted a thorough examination of the dataset structure to understand the types and potential inconsistencies of the data. This step helped identify the need for several cleaning actions:
+
+-   **Handling Missing Values**: We checked for missing data across all variables and reported the findings. Where missing values were found, they were carefully handled either by imputation or removal, depending on their impact on the analysis.
+
+-   **Standardizing Variable Names**: To ensure consistency and ease of data manipulation, all variable names were converted to lowercase. Spaces within names were replaced with underscores, thus standardizing the names across the dataset.
+
+-   **Transforming Variables**: Key variables were transformed to better reflect their ordered nature. For instance, variables like daily studying time, social media usage, and traveling time were converted into ordered factors, which categorize their respective ranges into a structured format.
+
+-   **Deriving New Variables**: New variables such as Body Mass Index (BMI) were calculated to provide additional insights. We also explored changes in academic performance by calculating the difference and percentage change between marks obtained at different academic levels.
+
+-   **Saving the Cleaned Data**: Once cleaned, the dataset was saved in an RDS file format to maintain the integrity of the data and ensure that our results could be reproduced and further analyzed in subsequent phases of the project.
+
+The systematic approach adopted in cleaning the dataset not only facilitated robust analysis but also adhered to best practices in data management, ensuring that the findings from this study would be reliable and valuable.
+
+```{r data cleaning, results='hide', echo=FALSE, results='hide'}
+
+# ----- Data Exploration -----
+# str(student_data)  # Structure of the dataset
+
+# ----- Check for missing values -----
+missing_values <- sum(is.na(student_data))
+if (missing_values > 0) {
+  print(paste("There are", missing_values, "missing values in the dataset."))
+} else {
+  print("There are no missing values in the dataset.")
+}
+
+# ----- Rename variables for consistency -----
+names(student_data) <- tolower(names(student_data))
+names(student_data) <- str_replace_all(names(student_data), "\\s+", "_")
+names(student_data) <- c("certification", "gender", "department", "height_cm", "weight_kg", 
+                         "mark_10th", "mark_12th", "college_mark", "hobbies", "study_time", 
+                         "study_preference", "salary_expectation", "like_degree", 
+                         "career_willingness", "social_media_time", "travel_time", 
+                         "stress_level", "financial_status", "part_time_job")
+
+# ----- Factor and Ordered Factor Conversions -----
+# Convert "study_time" column to an ordered categorical variable
+student_data$study_time <- factor(student_data$study_time, ordered = TRUE, 
+                                  levels = c("0 - 30 minute", "30 - 60 minute", "1 - 2 Hour",
+                                             "2 - 3 hour", "3 - 4 hour", "More Than 4 hour"))
+
+# Convert "social_media_time" column to an ordered categorical variable
+student_data$social_media_time <- factor(student_data$social_media_time, ordered = TRUE, 
+                                         levels = c("0 Minute", "1 - 30 Minute", "30 - 60 Minute", 
+                                                    "1 - 1.30 hour", "1.30 - 2 hour", "More than 2 hour"))
+
+# Convert "travel_time" column to an ordered categorical variable
+student_data$travel_time <- factor(student_data$travel_time, ordered = TRUE, 
+                                   levels = c("0 - 30 minutes", "30 - 60 minutes",  "1 - 1.30 hour", 
+                                              "1.30 - 2 hour", "2 - 2.30 hour",  "2.30 - 3 hour", "more than 3 hour"))
+
+# Convert "stress_level" and "financial_status" columns to ordered categorical variables
+student_data$stress_level <- factor(student_data$stress_level, ordered = TRUE, 
+                                    levels = c("Awful", "Bad", "Good", "fabulous"))
+
+student_data$financial_status <- factor(student_data$financial_status, ordered = TRUE, 
+                                        levels = c("Awful", "Bad", "good", "Fabulous"))
+
+# Rename the levels of "stress_level" and "financial_status" columns for consistency
+levels(student_data$stress_level) <- c("Awful", "Bad", "Good", "Fabulous")
+levels(student_data$financial_status) <- c("Awful", "Bad", "Good", "Fabulous")
+
+# Convert "career_willingness" column to an ordered categorical variable
+student_data$career_willingness <- factor(student_data$career_willingness, ordered = TRUE, 
+                                          levels = c("0%", "25%",  "50%", "75%", "100%"))
+
+# Rename the levels of "department"
+levels(student_data$department) <- c("Accounting and Finance", "ISM", "BCA", "Commerce")
+
+
+# ----- Extrapolate some new variables from the dataset -----
+
+# Create a variable for BMI (Body Mass Index)
+student_data$body_mass_index <- student_data$weight_kg/(student_data$height_cm/100)^2
+
+# Now, create the BMI category variable
+student_data$bmi_category <- cut(student_data$body_mass_index,
+                                 breaks = c(-Inf, 18.5, 25, 30, Inf),
+                                 labels = c("Underweight", "Normal Weight", "Overweight", "Obese"),
+                                 right = FALSE,   # This means the intervals are right-open (e.g., [18.5, 25))
+                                 ordered_result = TRUE)
+
+# Create some variables to represent the changes in grades over the years
+student_data <- student_data %>%
+  mutate(
+    # Calculate changes between each stage
+    change_10th_to_12th = mark_12th - mark_10th,
+    change_12th_to_college = college_mark - mark_12th,
+    
+    # Calculate percentage changes for more nuanced understanding
+    pct_change_10th_to_12th = (change_10th_to_12th / mark_10th) * 100,
+    pct_change_12th_to_college = (change_12th_to_college / mark_12th) * 100,
+    
+    # Create a composite score:
+    # Weight more recent changes more heavily
+    composite_score = (0.5 * pct_change_10th_to_12th) + (0.5 * pct_change_12th_to_college)
+  )
+
+
+# ----- Review and save cleaned dataset -----
+head(student_data)
+# str(student_data)
+
+# Save the cleaned dataset to an RDS file using 'here'
+cleaned_file_path <- here("data", "derived_data", "cleaned_student_data.rds")
+saveRDS(student_data, cleaned_file_path)
+
+
+```
+
+## Outlier Analysis
+
+In this section, we address and rectify potential outliers identified in the "Student Attitude and Behavior" dataset. Accurate outlier detection is crucial as it helps in ensuring the reliability of our statistical analyses and results.
+
+### Height vs. Weight Distribution Analysis
+
+Upon visual inspection of the Height vs. Weight Distribution plot, we identified a clearly unrealistic record where a student was reported to have a height of 4.5 cm and a weight of 42 kg. It was assumed that the height had been incorrectly entered, as other students with a similar weight had heights around 145 cm. Therefore, we corrected the height to 145 cm for this outlier.
+
+```{r height_weight_correction, echo=FALSE, fig.width=9, fig.height=5}
+# Visualize height and weight distribution with the outlier highlighted
+ggplot(student_data, aes(x = height_cm, y = weight_kg)) +
+  geom_point(alpha = 0.6, color = "#0073C2FF") +
+  labs(title = "Height vs. Weight Distribution",
+       x = "Height (cm)",
+       y = "Weight (kg)") +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5),
+        axis.title.x = element_text(face = "bold"),
+        axis.title.y = element_text(face = "bold"),
+        panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_line(color = "gray", linetype = "dotted"),
+        panel.grid.major.y = element_line(color = "gray", linetype = "dotted"),
+        legend.position = "none")
+```
+
+### 10th Grade Marks Distribution Analysis
+
+During our analysis of the distribution of 10th grade marks, we discovered an outlier where one student had an unusually low mark of 7.4, despite having reasonably high marks in the 12th grade and college. Given the context and comparison with peer performance, we have noticed that for both 10th and 12th grade all grades were higher than 40%, it was determined that the mark was likely incorrectly recorded. Assuming a typographical error, we corrected the 10th grade mark from 7.4 to 74.
+
+```{r mark_10th_correction, echo=F, fig.width=9, fig.height=5}
+# Visualize distribution of 10th grade marks with the outlier correction
+ggplot(student_data, aes(x = mark_10th)) +
+  geom_histogram(binwidth = 5, fill = "#3498db", color = "#1f2d3d", alpha = 0.7) +
+  labs(title = "Distribution of 10th Grade Marks",
+       x = "10th Grade Marks",
+       y = "Count of Students") +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 16),
+        axis.title.x = element_text(face = "bold", size = 14),
+        axis.title.y = element_text(face = "bold", size = 14),
+        axis.text = element_text(color = "#2c3e50"),
+        panel.grid.major = element_line(color = "gray", linetype = "dotted"),
+        panel.grid.minor = element_blank())
+
+```
+
+After these corrections, we reviewed and saved the corrected dataset for further analysis. This systematic approach to identifying and rectifying outliers ensures the accuracy and credibility of our subsequent data analyses.
+
+```{r corrected_dataset, echo=F, results='hide'}
+# ----- Review and save cleaned dataset -----
+head(student_data)
+str(student_data)
+
+# Save the cleaned dataset to an RDS file using 'here'
+cleaned_file_path <- here("data", "derived_data", "cleaned_student_data.rds")
+saveRDS(student_data, cleaned_file_path)
+```
+
+## Variables Correlation
+
+After identifying and correcting outliers in the previous sections, we proceeded to examine the interrelationships between various ordered variables within our dataset. This analysis helps us understand how different aspects of student behavior and performance are associated with each other, which can be crucial for developing targeted interventions or educational programs.
+
+### Correlation Analysis Methodology
+
+The correlation analysis was conducted using the `corrplot` package in R, which is designed for visualizing correlation matrices. To prepare for this analysis, ordered categorical variables were first converted into numeric ranks, allowing us to calculate Pearson correlation coefficients. This transformation was crucial as it enabled the computation of linear relationships between variables that are ordinal by nature.
+
+We selected key variables that represent different dimensions of student life and academic performance, including academic marks across different levels (college, 12th grade, and 10th grade), study habits, career aspirations, social media usage, travel times, stress levels, financial status, and body mass index (BMI). These variables were thought to encompass the primary factors that could influence a student's academic trajectory and well-being.
+
+```{r correlation_matrix_data, echo=FALSE}
+# ----- Convert ordered factors to numeric ranks for correlation analysis -----
+# This allows for the computation of correlations among ordinal and numeric variables
+numeric_vars <- student_data %>%
+  mutate(across(where(is.ordered), as.numeric),  # Correctly convert ordered factors
+         across(where(is.numeric), as.numeric))  # Ensure other numeric data remains numeric
+
+
+# ----- Select relevant numeric and ordered variables -----
+# Ensure that key variables such as academic marks and personal metrics are included
+selected_vars <- c("college_mark", "mark_12th", "mark_10th",
+                   "study_time", "salary_expectation", "career_willingness",
+                   "social_media_time", "travel_time", "stress_level", 
+                   "financial_status", "body_mass_index")
+
+# Filter the data to only include the selected variables
+# Check if all selected variables are present in the data and select them
+if (!all(selected_vars %in% names(numeric_vars))) {
+  missing_vars <- selected_vars[!selected_vars %in% names(numeric_vars)]
+  stop("The following variables are missing: ", paste(missing_vars, collapse = ", "))
+} else {
+  cor_data <- numeric_vars %>%
+    dplyr::select(tidyselect::all_of(selected_vars))  # Use select with all_of safely after check
+}
+
+# ----- Update column names for readability -----
+# Replace underscores with spaces and capitalize each word for better presentation in plots
+colnames(cor_data) <- str_replace_all(colnames(cor_data), "_", " ")
+colnames(cor_data) <- str_to_title(colnames(cor_data))
+
+# ----- Calculate the correlation matrix -----
+# Use 'pairwise.complete.obs' to handle missing values appropriately
+cor_matrix <- cor(cor_data, use = "pairwise.complete.obs")
+```
+
+### Correlation Matrix Results
+
+The resulting correlation matrix is presented below:
+
+```{r correlation_matrix, echo=F, fig.width=9, fig.height=6}
+# ----- Visualize the correlation matrix using corrplot -----
+# Customize the correlation plot for better visual interpretation
+corrplot(cor_matrix, method = "color", type = "lower", order = "original", 
+         addCoef.col = 'white',  # Add correlation coefficients in white color for visibility
+         tl.col = "black",  # Text label color
+         tl.srt = 1,        # Text label angle
+         title = "Correlation Matrix of Ordered Variables", 
+         tl.cex = 0.9,      # Font size for variable labels
+         number.cex = 1,  # Font size for correlation coefficients
+         mar = c(0, 0, 2, 0))  # Margin adjustments (bottom, left, top, right)
+
+```
+
+#### Key Observations:
+
+-   **Academic Performance**: There is a moderate positive correlation between marks at different educational levels (college, 12th, and 10th), with coefficients ranging from 0.42 to 0.47. This suggests a consistent performance trend among students across different stages of their academic journey.
+-   **Study Time and Career Willingness**: A positive correlation (0.25) between study time and career willingness indicates that students who dedicate more time to studying tend to have a higher inclination towards pursuing a career related to their degree.
+-   **Social Media Time and Stress Levels**: Interestingly, social media time has a very slight negative correlation with career willingness (-0.08) and no significant correlation with stress levels, suggesting that social media usage might not be as impactful on academic or psychological outcomes as commonly perceived.
+-   **Travel Time and Stress Levels**: Travel time shows a positive correlation (0.19) with stress levels, highlighting that longer commutes might be contributing to higher stress among students.
+-   **Financial Status and BMI**: There is a notable negative correlation (-0.16) between financial status and BMI, possibly indicating socioeconomic factors influencing health and nutritional status.
+
+### Conclusion
+
+This correlation analysis provides valuable insights into how various factors are interlinked within our dataset. Understanding these relationships helps in pinpointing areas that may require more focused research or intervention to improve student outcomes. It also aids in hypothesizing potential causal relationships, although further statistical testing and research would be required to confirm these.
+
+## Grade Distributions
+
+Following the analysis of variables' correlations and outlier management, we examined the distribution of grades across different educational levels and analyzed these distributions by gender. This section helps in understanding how academic performance varies among students, and how it might be influenced by gender.
+
+### Grade Distribution Analysis Methodology
+
+The analysis involved transforming the dataset to a long format to facilitate easier aggregation and visualization. By pivoting academic marks into a single column differentiated by educational level (10th grade, 12th grade, and college), we could efficiently generate density plots that illustrate the distribution of grades across these levels.
+
+A custom theme was defined using `ggplot2` to ensure that all visualizations are consistent and visually appealing. This theme emphasizes clarity and readability, which are crucial for effectively communicating the findings.
+
+```{r grades_densities_analysis, echo=FALSE}
+# ----- Transform data for analysis ----------------------------------------
+# Pivot the selected columns to a long format for easier aggregation and plotting
+data_long <- student_data %>%
+  dplyr::select(mark_10th, mark_12th, college_mark) %>%
+  pivot_longer(cols = everything(), names_to = "grade_level", values_to = "grade")
+
+# ----- Define a custom theme for plots -------------------------------
+# Create a theme for consistent and attractive visuals across all plots
+custom_theme <- theme_minimal() +
+  theme(text = element_text(family = "sans", color = "#333333"), 
+        plot.title = element_text(face = "bold", size = 14),
+        legend.title = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        axis.title = element_text(size = 12),
+        axis.text = element_text(size = 10),
+        panel.grid.major = element_line(color = "gray", linewidth = 0.5),
+        panel.grid.minor = element_blank())
+
+```
+
+### Visualizing Grade Distributions
+
+The grade distribution across different educational levels was visualized using density plots. These plots allow us to observe the frequency distribution of grades and identify patterns or anomalies such as skewness or bimodality in the data.
+
+```{r grades_densities, echo=FALSE, fig.width=9, fig.height=5}
+# ----- Visualize grade distributions across educational levels -----
+# Generate a density plot to visualize the distribution of grades
+p <- ggplot(data_long, aes(x = grade, fill = grade_level)) +
+  geom_density(alpha = 0.5) +
+  scale_x_continuous(limits = c(0, 100), breaks = seq(0, 100, 20)) +
+  scale_y_continuous(limits = c(0, 0.038), breaks = seq(0, 0.038, 0.01)) +
+  custom_theme + theme(legend.position = "bottom") +
+  labs(title = "Grade Distributions Across Different Educational Levels",
+       x = "Grade",
+       y = "Density") +
+  scale_fill_manual(values = c("college_mark" = "gold", "mark_12th" = "coral", "mark_10th" = "steelblue"),
+                    name = "Grade Level",
+                    labels = c("College Marks", "12th Grade Marks", "10th Grade Marks"))
+
+# Print the histogram plot
+print(p)
+```
+
+#### Observations:
+
+-   **Consistency Across Levels**: The density plots reveal that while the distribution of marks in the 10th and 12th grades shows a moderate skew towards higher grades, college marks display a broader spread, suggesting a variation in grading criteria or student performance at this level.
+-   **Peaks and Tails**: Each educational level shows unique characteristics in its distribution, with 10th-grade marks generally clustering around higher values, indicating a possible leniency in scoring at lower educational levels.
+
+### **Statistical Analysis Across Educational Levels**
+
+After observing the density plots which show how grades are distributed across 10th, 12th, and college levels, we conducted a Kruskal-Wallis test to statistically validate whether the differences in grade distributions across these levels are significant. The test returned a p-value of 1.123e-13, indicating strong statistical evidence that the grade distributions are indeed different across the three levels. To drill down into these differences, we performed pairwise comparisons using the Wilcoxon rank sum test. The results were telling; each pairwise comparison showed significant differences: between 10th and 12th grades (p-value = 4.4621e-14), between 10th grade and college marks (p-value = 9.3729e-07), and between 12th grade and college marks (p-value = 0.0039081). These p-values strongly support the initial visual observation that students' performance varies significantly across different educational stages.
+
+```{r grade_difference_analysis, echo=F, results='hide'}
+# ----- Analyze grade distributions between educational levels -----
+# Perform statistical tests to compare grade distributions between different educational levels
+compare_grade_distributions(student_data, c("mark_10th", "mark_12th", "college_mark"))
+```
+
+### Pairwise Relationships and Distributions by Gender
+
+To delve deeper, we also explored how these grade distributions vary by gender. Pairwise plots were generated to visualize the relationships between different grade levels and to compare these relationships across genders.
+
+```{r pairs_plot, echo=FALSE, message=FALSE, fig.width=9, fig.height=5}
+# ----- Create and customize pairs plots ---------------------------------------
+
+# Custom function for density plots with specified x-axis limits and matching fill and line colors
+density_custom <- function(data, mapping, ...){
+  ggplot(data = data, mapping = mapping) + 
+    geom_density(aes(fill = gender), color='black', ...) + # Set fill and line colors to match
+    xlim(0, 100) # Set the x-axis limits
+}
+
+# Custom function for scatterplots with specified axis limits
+scatter_custom <- function(data, mapping, ...){
+  ggplot(data = data, mapping = mapping) + 
+    geom_point(...) + 
+    xlim(0, 100) + 
+    ylim(0, 100)
+}
+
+# ----- Visualize grade distributions differentiating by gender -----
+
+# Visualize grade distributions for the first three columns
+p <- ggpairs(student_data, 
+             columns = c("college_mark", "mark_12th", "mark_10th"), 
+             columnLabels = c("College Mark", "12th Grade Mark", "10th Grade Mark"),
+             mapping = aes(color = gender, alpha = 0.7),
+             lower = list(continuous = wrap("cor", size = 5)),
+             upper = list(continuous = wrap(scatter_custom, alpha = 0.7)),
+             diag = list(continuous = wrap(density_custom, linewidth = 0.4, alpha = 0.7)))
+
+# Enhance pairs plot aesthetics
+p <- p + theme_bw() +
+  theme(legend.position = "bottom", 
+        plot.title = element_text(hjust = 0.5)) +
+  ggtitle("Pairwise Relationships by Gender")
+
+# Print the pairs plot
+print(p)
+```
+
+#### Key Insights:
+
+-   **Correlation Coefficients**: There is a noticeable correlation between grades at successive educational levels, with coefficients indicating moderate to strong relationships. Notably, these correlations tend to be higher among females than males, suggesting that female students may exhibit more consistency in their academic performance over time.
+-   **Distribution Shapes**: The plots show that the distribution of grades for female students is often tighter and more skewed towards higher grades compared to their male counterparts.
+
+### Statistical Analysis
+
+Further statistical tests were conducted to compare grade distributions between different educational levels and to assess gender differences in academic performance:
+
+-   **Comparative Analysis**: Statistical tests confirmed the visual insights, showing significant differences in the distribution of grades between educational levels.
+-   **Gender Performance**: Additional testing was carried out to determine if female students consistently score higher across all educational levels. The results supported this hypothesis, indicating a statistically significant higher performance among female students in most educational settings.
+
+### **Statistical Analysis by Gender**
+
+Upon exploring the pairwise relationships and distributions by gender, we conducted further analyses to determine if there are statistically significant differences in grades between genders at each educational level. The normality tests showed that the data were not normally distributed, which led us to use the Mann-Whitney U test, a non-parametric test ideal for this scenario. For 10th grade marks, the test indicated a significant difference between genders (p-value = 0.014178), suggesting that gender does play a role in grade outcomes at this level. Similarly, for 12th grade and college marks, the results (p-values of 0.0026588 and 9.2326e-07, respectively) confirmed significant differences in grades between males and females.
+
+```{r grades_by_gender, echo=FALSE, results='hide'}
+# Conduct tests to analyze differences in grade distributions by gender for each grade level
+analyze_grades_by_gender(student_data, c("mark_10th", "mark_12th", "college_mark"))
+
+```
+
+Additionally, when testing specifically whether females scored higher than males, the results were affirmative across all educational levels with p-values of 0.0070892 for 10th grade, 0.0013294 for 12th grade, and 4.6163e-07 for college marks, providing robust evidence that female students consistently outperform their male counterparts at these stages.
+
+```{r higher_female_grades, echo=FALSE, results='hide'}
+# Test hypotheses whether females score higher in grades at each educational level
+assess_higher_female_grades(student_data, "mark_10th")
+assess_higher_female_grades(student_data, "mark_12th")
+assess_higher_female_grades(student_data, "college_mark")
+```
+
+### Conclusion
+
+This comprehensive analysis of grade distributions provides valuable insights into the academic performance of students across different educational levels and highlights significant gender disparities. Understanding these patterns is crucial for educational institutions aiming to address inequities and tailor interventions that support all student demographics.
+
+## **Variables Analysis by Gender**
+
+In this part of our study, we aimed to explore how various categorical variables distribute differently across genders. We specifically investigated the distributions of study time, social media time, stress levels, financial status, BMI categories, and career willingness among male and female students.
+
+### **Methodology and Visual Analysis**
+
+We calculated the proportions within each category by gender to examine any potential disparities. For each category, we created bar plots to visualize these proportions, ensuring that every combination of gender and category was represented—even where there were no counts for a category in one gender. This approach helped us handle potential data sparsity effectively.
+
+One such plot, which represents the distribution of study time by gender, highlights significant differences in how male and female students allocate time for studying. Here's the plot for **Study Time by Gender**:
+
+```{r study_time_by_gender, echo=FALSE, fig.width=9, fig.height=5, warning=FALSE}
+# Plotting the distribution of study time by gender using the helper function we have built
+plot_category_proportions_by_gender(student_data, "study_time", custom_theme)
+```
+
+This plot reveals that males tend to spend less time studying compared to females, particularly in the lower ranges of study time.
+
+While this plot reveals visible differences in study time preferences, similar plots were generated for other variables like social media time, stress level, financial status, BMI categories, and career willingness. Each plot provided insights into the unique patterns of how different genders interact with these variables:
+
+-   **BMI Category**: The plot indicates a concerning trend where approximately 35% of students fall into overweight and obese categories. There is a statistically significant difference between genders, with a larger proportion of males being overweight or obese compared to females. This suggests gender-specific health interventions might be necessary.
+
+-   **Career Willingness**: The distributions are remarkably similar between males and females, with over 90% of students expressing at least 50% willingness to pursue a career related to their degree. This high level of career willingness across genders suggests a positive outlook towards their fields of study.
+
+-   **Travel Time**: The distribution suggests that more female students live closer to campus as their travel times are generally shorter. In contrast, the male students' travel time is less skewed, with a higher proportion traveling for more than 1.5 hours. This could influence campus engagement and needs to be considered in university planning and support services.
+
+-   **Financial Status**: The financial status across genders shows no significant differences, with most students reporting "good" financial status. However, a smaller percentage of males report "bad" financial status compared to females.
+
+-   **Social Media Time**: Both genders spend similar amounts of time on social media, with no significant differences found. The majority of students spend between 30 minutes to 2 hours on social media daily.
+
+-   **Stress Level**: Stress levels are similarly distributed across genders, with most students reporting "good" stress levels. No significant gender differences were noted here, suggesting that stress-related interventions can be uniformly applied across genders.
+
+### **Statistical Analysis and Findings**
+
+To back up our visual findings with statistical evidence, we carried out Chi-squared tests for each category to test the null hypothesis that the distribution of categories is the same across genders. The Chi-squared test is particularly useful for categorical data and helps determine whether there are significant differences in the categorical distributions between two or more groups.
+
+Three of the tested variables have resulted to have significant p-values.
+
+-   **Significant Variables**:
+
+    -   **BMI Categories**: Confirmed to be significant with a p-value of 0.0003714, suggesting that there is a disparity in the body mass distribution between males and females.
+
+    -   **Travel Time**: Showed a significant difference with a p-value of 0.02184, reflecting varying commuting behaviors.
+
+    -   **Study Time**: Highlighted significant differences in study habits with a p-value of 0.0237, suggesting that males are less likely to engage in longer study periods compared to females.
+
+```{r compare_categorical_by_gender, results='hide', echo=FALSE}
+
+# Categories to test
+categories <- c("study_time", "social_media_time", "stress_level", "financial_status", 
+                "bmi_category", "career_willingness", "travel_time")
+# Performing statistical analysis using the helper function 'compare_categorical_by_gender'
+for (category in categories){
+  cat(compare_categorical_by_gender(student_data, category))
+}
+
+
+```
+
+### **Conclusion**
+
+The analysis highlighted significant gender disparities in several key areas, including study time, BMI categories, and travel time, which are crucial for understanding student behaviors and needs. By understanding these patterns, educational institutions and policymakers can better design interventions, resources, and supports that are sensitive to the diverse needs of male and female students. These insights are vital for fostering an inclusive and supportive academic environment.
+
+## **Categorical Variable Analysis by Gender**
+
+Our study analyzed the distribution of several categorical variables—certification, department, hobbies, like degree, and part-time job—across genders to discern any statistical differences in preferences and involvements within a student dataset.
+
+### **Visual Analysis and Plot Discussion**
+
+Visualizations were constructed for each category, showcasing how male and female students differ in various aspects of academic and social life. We particularly focus on "Hobbies" and "Department" as they show noteworthy patterns:
+
+-   **Hobbies by Gender**: The chart illustrates a clear divergence in leisure activities between genders. Females predominantly engage in cinema and reading, while a significant proportion of males prefer video games. This distinct variation points to gender-specific leisure preferences that could influence targeted engagement strategies.
+
+    ```{r hobbies_by_gender, echo=FALSE, fig.width=9, fig.height=5}
+    # Define custom theme for consistent and attractive visuals across all plots
+    custom_theme <- custom_theme <- theme_void() + theme(legend.position = "right") +
+      theme(text = element_text(family = "sans", color = "#333333"),
+            plot.title = element_text(face = "bold", size = 14),
+            legend.title = element_text(size = 12),
+            legend.text = element_text(size = 12),
+            strip.text = element_text(size = 14))
+
+    # Visualize the pie chart for hobbies by gender
+    hobbies_pie_chart <- plot_pie_chart_by_gender(student_data, "hobbies", custom_theme)
+    ```
+
+-   **Department by Gender**: This plot reveals a disparity in academic department preferences among genders. Most males are concentrated in Commerce, whereas females are more evenly spread across Accounting and Finance, ISM, and BCA. Such differences could have implications for departmental marketing and support services.
+
+    ```{r department_by_gender, echo=FALSE, fig.width=9, fig.height=5}
+    # Visualize the pie chart for department by gender
+    dept_pie_chart <-plot_pie_chart_by_gender(student_data, "department", custom_theme)
+    ```
+
+### **Statistical Analysis and Key Findings**
+
+We employed Chi-squared tests to validate whether the observed distributions were statistically significant:
+
+-   **Certification**: No significant difference in certification holding between genders was detected, with a p-value of 0.3256. This suggests that both genders are equally likely to pursue additional qualifications.
+
+-   **Department**: Significant differences were observed in department choices, with a p-value of 0.0251. This indicates that gender may play a role in the selection of academic fields.
+
+-   **Hobbies**: A highly significant difference in hobbies was noted, with a p-value of 0.000121, confirming gender-specific preferences in leisure activities.
+
+-   **Like Degree**: There was no significant difference in satisfaction with their degree program between genders, p-value of 0.912, suggesting similar levels of contentment across the board.
+
+-   **Part-Time Job**: The distribution of part-time job engagement showed no significant difference with a p-value of 0.05457, nearly reaching statistical significance, suggesting a trend that might warrant closer examination.
+
+```{r compare_categorical_by_gender2, results='hide', echo=FALSE}
+
+# Categories to test
+categories <- c("certification", "department", "hobbies", "like_degree", "part_time_job")
+
+# Performing statistical analysis using the helper function 'compare_categorical_by_gender'
+for (category in categories){
+  cat(compare_categorical_by_gender(student_data, category))
+}
+
+
+```
+
+### **Statistical Test Outcomes**
+
+-   **Significant Findings**:
+
+    -   **Department and Hobbies** showed significant differences, indicating key areas where gender influences choices and preferences.
+
+-   **Non-Significant Findings**:
+
+    -   **Certification, Like Degree, and Part-Time Job** distributions did not show significant differences, suggesting similar behaviors and choices between genders in these aspects.
+
+### **Conclusion**
+
+This detailed exploration into how categorical variables distribute across genders within the student body reveals both significant and non-significant differences. Understanding these patterns allows educational institutions to better tailor their resources and support systems, ensuring that they effectively meet the diverse needs of their student population. The insights from the department and hobbies are particularly valuable for developing engagement strategies and support systems that are sensitive to gender differences, thereby fostering a more inclusive academic environment.
+
+## **Decision Tree Modeling**
+
+### **Introduction to Decision Tree Analysis**
+
+Decision trees are a widely-used form of predictive modeling that are especially useful due to their interpretability and ease of understanding. They work by splitting data into branches to form a tree structure, where each decision node represents a choice between two or more paths, and each leaf node represents a predicted outcome. This makes them particularly adept at handling complex, non-linear relationships within data.
+
+### **Objective of Our Analysis**
+
+In our study, we aim to understand the factors influencing student performance in college, specifically focusing on the predictive power of various student characteristics on their college marks. To do this, we will construct two decision tree models:
+
+1.  **Model Including Previous Marks**: This model considers previous academic performance (marks from 10th and 12th grades) alongside other variables.
+
+2.  **Model Excluding Previous Marks**: This model focuses solely on general characteristics like study habits, lifestyle choices, and demographic details, allowing us to explore what factors other than past academic performance might predict college success.
+
+These models will help us identify key factors that predict college performance, which can be crucial for academic interventions and policy making.
+
+### **Overview of Our Modeling Process**
+
+In our project, we employed decision trees to model and predict college marks. We used the **`tidymodels`** framework, specifically the **`rpart`** method for creating the decision trees, which allows us to visually understand what features are most influential in predicting student performance.
+
+### **Preparing the Data**
+
+The dataset was initially processed to select relevant variables, such as marks from different educational stages, gender, study habits, and more. We performed a clean split of the data into training and testing sets, ensuring that both sets are representative of the overall data. This allows us to fit our model on one set of data (training) and validate its performance on unseen data (testing).
+
+```{r data_split, echo=FALSE}
+# ----- Data Selection for Regression Model ------------------------------------
+# Select the columns to use for the regression analysis
+selected_vars <- c("college_mark", "mark_12th", "mark_10th", "gender", "study_time", 
+                   "salary_expectation", "department", "career_willingness", "social_media_time", 
+                   "travel_time", "stress_level", "financial_status", 
+                   "body_mass_index", "certification", "hobbies", 
+                   "study_preference", "like_degree", "part_time_job")
+regression_data <- student_data %>% dplyr::select(tidyselect::all_of(selected_vars))
+
+# Apply friendly formatting to column names
+names(regression_data)[-c(1)] <- str_to_title(gsub("_", " ", names(regression_data[-c(1)])))
+
+# ----- Data Splitting into Training and Testing Sets ---------------------------
+set.seed(123)
+data_split <- initial_split(regression_data, prop = 0.8)
+train_data_with_grades <- training(data_split)
+test_data_with_grades <- testing(data_split)
+
+# Remove grade columns for models that predict without prior grades
+train_data_without_grades <- train_data_with_grades %>% dplyr::select(-"Mark 12th", -"Mark 10th")
+test_data_without_grades <- test_data_with_grades %>% dplyr::select(-"Mark 12th", -"Mark 10th")
+
+```
+
+### **Model Building and Evaluation**
+
+Two decision trees were constructed:
+
+1.  **Tree with Previous Grades**: This model includes marks from the 10th and 12th grades as predictors.
+
+2.  **Tree without Previous Grades**: This model excludes prior academic marks to assess the impact of other factors on college performance.
+
+The decision trees help us visualize the decision-making process of the model, highlighting the most significant splits used to predict student marks.
+
+```{r decision_tree_fitting, echo=FALSE}
+# ----- Model Specification and Fitting ----------------------------------------
+# Create a decision tree model specification
+tree_spec <- decision_tree() %>%
+  set_engine("rpart", model = TRUE) %>%
+  set_mode("regression")
+
+# Fit models with and without high school grades
+tree_fit_with_grades <- tree_spec %>%
+  fit(college_mark ~ ., data = train_data_with_grades)
+
+tree_fit_without_grades <- tree_spec %>%
+  fit(college_mark ~ ., data = train_data_without_grades)
+
+```
+
+### **Analysis of Decision Trees and Variable Importance**
+
+#### **Decision Tree Plots**
+
+-   **Tree with Previous Grades**:
+
+    -   The primary split is on the 10th-grade marks, reflecting their strong influence on predicting college marks.
+
+    -   Subsequent splits suggest that variables like 'Career Willingness' and 'Gender' also modify predictions, indicating their secondary importance in the context where previous academic records are known.
+
+```{r tree_with_grades, echo=FALSE, fig.width=9, fig.height=5}
+plot_tree(tree_fit_with_grades)
+```
+
+-   **Tree without Previous Grades**:
+
+    -   The tree first divides on 'Salary Expectation,' highlighting economic expectations as a significant predictor when previous academic performance is not considered.
+
+    -   Further splits on 'Department' and 'Social Media Time' underline the impact of academic field and personal habits on college performance.
+
+```{r tree_without_grades, echo=FALSE, fig.width=9, fig.height=5}
+plot_tree(tree_fit_without_grades)
+```
+
+#### **Variable Importance Plots**
+
+Variable importance in decision trees is computed based on the improvement in the model's accuracy brought by each feature at each split. Features that lead to higher gains in purity (or lower impurity) of the nodes are considered more important. These importance values help in understanding the predictive power of each feature and guide feature selection for future modeling efforts.
+
+-   **Plot for Model Including Grades**:
+
+    -   Marks from the 10th and 12th grades dominate in importance, underscoring the traditional view that past academic performance is a strong predictor of future success.
+
+    -   Other significant factors include 'Body Mass Index' and 'Salary Expectation,' suggesting a nuanced interplay between health, economic expectations, and academic outcomes.
+
+```{r tree_with_grades_vip, echo=FALSE, fig.width=9, fig.height=5}
+tree_fit_with_grades_vip_plot <- create_vip_plot(tree_fit_with_grades)
+
+```
+
+-   **Plot for Model Excluding Grades**:
+
+    -   'Salary Expectation' tops the chart, followed by 'Gender' and 'Department,' pointing to socio-economic and demographic factors as critical predictors in the absence of prior grade information.
+
+    -   The prominence of 'Career Willingness' and 'Social Media Time' also indicates the relevance of motivational and lifestyle factors in student performance.
+
+```{r tree_without_grades_vip, echo=FALSE, fig.width=9, fig.height=5}
+tree_fit_without_grades_vip_plot <- create_vip_plot(tree_fit_without_grades)
+```
+
+### **Model Evaluation Metrics**
+
+To assess the performance of our decision tree models, we used two common metrics: Root Mean Squared Error (RMSE) and R-squared (R²). These metrics help quantify the accuracy of predictions and the proportion of variance in the dependent variable that is predictable from the independent variables.
+
+#### **Model with Previous Grades Metrics:**
+
+-   **RMSE**: The model achieved an RMSE of 17.36. This value represents the average deviation of the predicted college marks from the actual marks, measured in the same units as the marks themselves. The lower the RMSE, the more accurate the model is considered to be.
+
+-   **R²**: The R² value for this model is approximately 0.012, indicating that about 1.2% of the variance in college marks is explained by the model. This suggests that, although the model includes historically strong predictors like 10th and 12th-grade marks, it captures only a small fraction of the factors affecting college performance.
+
+#### **Model without Previous Grades Metrics:**
+
+-   **RMSE**: This model shows a slightly lower RMSE of 16.62, suggesting that it is slightly more accurate in predicting college marks than the model that includes previous grades.
+
+-   **R²**: The R² value here is approximately 0.031, which is higher than the first model. This indicates that 3.1% of the variance in college marks is explained by the model. Interestingly, this model seems to capture a bit more variability despite not having access to prior academic performance data.
+
+```{r tree_metrics, echo=FALSE}
+# Calculate and print metrics for both models
+metrics <- metric_set(rmse, rsq)
+tree_with_grades_metrics <- calculate_model_metrics(test_data_with_grades, tree_fit_with_grades, metrics, "college_mark")
+tree_without_grades_metrics <- calculate_model_metrics(test_data_without_grades, tree_fit_without_grades, metrics, "college_mark")
+```
+
+### **Discussion on Model Metrics**
+
+The relatively low R² values in both models suggest that many factors influencing college performance are not captured by the variables included. This might indicate the presence of more nuanced factors not accounted for in the dataset, such as personal motivation, teaching quality, or external socio-economic factors, which are often hard to quantify.
+
+However, the slightly better performance of the model without previous grades in terms of both RMSE and R² might suggest that when not overshadowed by the strong influence of past academic performance, other variables such as salary expectations, department choice, and social media habits provide valuable insights into student performance. This could be crucial for developing supportive measures that focus more on student well-being and engagement rather than solely on academic history.
+
+### **Conclusion**
+
+Overall, these metrics help us understand the limitations and strengths of our models in predicting college performance. While the decision trees have provided valuable insights into the relative importance of various factors, the modest R² values remind us of the complexity of educational achievement and the need for broader data and more sophisticated models to fully understand and support student success in higher education.
+
+## **Random Forest Modeling**
+
+### **Introduction to Random Forest**
+
+Random Forest is an ensemble learning method that operates by constructing a multitude of decision trees at training time and outputting the average prediction of the individual trees. This method improves accuracy through the diversity of the trees and is robust against overfitting especially with a large number of trees. Random forests handle both regression and classification tasks and provide insights into feature importance.
+
+### **Objective of Our Analysis**
+
+The goal is to extend our decision tree modeling by employing Random Forests to predict college marks based on various student attributes. We build two versions of the Random Forest model:
+
+1.  **Model Including Previous Marks**: Incorporates historical academic performance to see how well past success predicts future results.
+
+2.  **Model Excluding Previous Marks**: Focuses on the influence of personal and demographic factors alone, providing insights into which traits impact academic success independent of past academic performance.
+
+This approach allows us to compare the predictive power of a single decision tree with that of a Random Forest, offering a broader understanding of the key drivers behind student performance in college.
+
+### **Model Building and Evaluation**
+
+Using the **`randomForest`** package within the **`tidymodels`** framework, we configured our Random Forest with 500 trees for robust prediction capabilities. The model fitting process involves training on our split datasets, with one model considering high school grades and the other not.
+
+```{r random_forest_fitting, echo=FALSE}
+# Model specification and fitting
+rf_spec <- rand_forest(trees = 500, mode = "regression") %>%
+  set_engine("randomForest") %>%
+  set_mode("regression")
+
+# Fit models
+rf_fit_with_grades <- rf_spec %>%
+  fit(college_mark ~ ., data = train_data_with_grades)
+rf_fit_without_grades <- rf_spec %>%
+  fit(college_mark ~ ., data = train_data_without_grades)
+
+```
+
+### **Model Performance Metrics**
+
+The performance of each model is evaluated using RMSE (Root Mean Square Error) and R-squared metrics, which provide insight into the accuracy and variance explained by the models, respectively.
+
+-   **Model with Grades Metrics:**
+
+    -   RMSE: 14.4
+
+    -   R-squared: 0.176
+
+-   **Model without Grades Metrics:**
+
+    -   RMSE: 16.8
+
+    -   R-squared: 0.0000403
+
+These metrics reveal that the Random Forest model including previous grades performs significantly better, suggesting that past academic performance is a strong predictor of college success.
+
+```{r random_forest_metrics, echo=F}
+# ----- Model Evaluation and Visualization -------------------------------------
+# Calculate and print metrics for both models
+metrics <- metric_set(rmse, rsq)
+rf_with_grades_metrics <- calculate_model_metrics(test_data_with_grades, rf_fit_with_grades, metrics, "college_mark")
+rf_without_grades_metrics <- calculate_model_metrics(test_data_without_grades, rf_fit_without_grades, metrics, "college_mark")
+
+```
+
+### **Variable Importance Plots**
+
+Variable importance plots from Random Forest models highlight which variables are most influential in predicting college marks. These plots provide a deeper insight into what factors most affect student performance, with higher values indicating greater importance.
+
+#### **Variable Importance for Model with Previous Marks**
+
+-   **Top Influential Factors**: Previous marks (10th and 12th) dominate, followed by factors like Body Mass Index and Department, underscoring the impact of both academic history and student lifestyle.
+
+```{r rf_with_grades_vip, echo=FALSE, fig.width=9, fig.height=5}
+rf_fit_with_grades_vip_plot <- create_vip_plot(rf_fit_with_grades)
+```
+
+#### **Variable Importance for Model without Previous Marks**
+
+-   **Top Influential Factors**: In the absence of grade history, Body Mass Index and Department rise in importance, along with Salary Expectations and Hobbies, indicating these factors play significant roles when previous academic performance is not considered.
+
+```{r rf_without_grades_vip, echo=FALSE, fig.width=9, fig.height=5}
+rf_fit_without_grades_vip_plot <- create_vip_plot(rf_fit_without_grades)
+```
+
+### **Comparison with Decision Tree Models**
+
+Comparing the Random Forest models to the Decision Tree models previously discussed, Random Forest generally provides a more reliable and stable prediction due to its ensemble nature, reducing the risk of overfitting associated with single decision trees. The enhanced performance in the Random Forest model, particularly in the version including grades, also suggests better handling of complex interactions between features.
+
+By examining both Decision Trees and Random Forests, we gain comprehensive insights into the factors influencing college success, which can guide targeted interventions to support student achievement.
