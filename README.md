@@ -1,88 +1,61 @@
 # Student Performance Analysis Project
+### Data Science Coursework 2 CID:01862429
 
 ## Overview
-Welcome to the Student Performance Analysis Project repository! This project is dedicated to modeling complex datasets to provide in-depth analytical reports. Our aim is to uncover insights from the "Student Attitude and Behavior" dataset downloadable from Kabble https://www.kaggle.com/datasets/susanta21/student-attitude-and-behavior to better understand the factors influencing student performance and well-being.
+Welcome to the Student Performance Analysis Project repository! This project is an academic endeavor dedicated to modeling complex datasets to provide in-depth analytical reports. Our primary aim is to uncover insights from the "Student Attitude and Behavior" dataset, which is available for download from Kaggle at [this link](https://www.kaggle.com/datasets/susanta21/student-attitude-and-behavior). By analyzing this data, we seek to better understand the factors influencing student performance and well-being, with a focus on how their attitudes and behaviors impact their academic outcomes.
 
 ### Objectives
-- **Demographic Analysis**: Explore student diversity in education.
-- **Academic Performance**: Understand the correlation between study habits and academic results.
-- **Lifestyle and Well-being**: Examine the impact of lifestyle choices on student stress levels.
-- **Career Aspirations**: Investigate students' career expectations in relation to their degree satisfaction.
-- **Part-time Work**: Assess the effects of part-time jobs on students' academic and personal lives.
+- To conduct a comprehensive analysis of the "Student Attitude and Behavior" dataset.
+- To identify key factors that influence student academic performance and well-being.
+- To develop predictive models that can forecast student success based on various behavioral and demographic indicators.
+- To provide actionable insights that can help educators and policymakers in crafting effective interventions.
 
 ## Repository Structure
-The repository is organized into several directories, each serving a distinct role in the project workflow:
+The repository is meticulously organized into several directories, each serving a distinct role in the project workflow:
 
 ```plaintext
 .
 ├── data/
 │ ├── raw_data/
-│ │ ├── student_attitude_behaviour.csv
 │ ├── derived_data/
-│ │ ├── student_attitude_behaviour.csv
 ├── src/
-│ ├── data_preprocessing.py
-│ ├── exploratory_analysis.py
-│ └── predictive_modeling.py
-├── tests/
-│ └── test_models.py
-├── analyses/
-│ └── statistical_tests.ipynb
-├── outputs/
-│ ├── figures/
-│ └── tables/
+├── test/
+├── analysis/
+├── figures/
 ├── reports/
-│ └── final_report.md
-└── makefile
 ```
-
-
 ### `data/`
-This directory contains all raw and derived datasets. For detailed information on the datasets, refer to `metadata.txt`.
+This directory is home to all datasets used in the project:
+
+- `raw_data/`: Contains the original, unmodified datasets downloaded from external sources.
+- `derived_data/`: Houses modified datasets that have been cleaned and transformed for analysis.
 
 ### `src/`
-Here you'll find all the source code used for data analysis and model training. The scripts are named according to the part of the project they correspond to.
+Contains all R scripts and helper functions. Each script is thoroughly commented and documented using the Roxygen2 package to enhance readability and maintainability.
 
-### `tests/`
-Contains automated tests for the source code to ensure reliability and accuracy of the algorithms used.
+### `test/`
+Includes unit tests for all functions in the src/ directory to ensure their reliability and accuracy. We utilize the testthat package for our testing framework.
 
-### `analyses/`
-Jupyter notebooks or R Markdown files detailing exploratory data analyses, statistical tests, and model development are stored here.
+### `analysis/`
+Stores R scripts detailing exploratory data analyses, statistical testing, and model development. Each script is designed to be self-contained, using the here package to manage paths and dependencies seamlessly.
 
-### `outputs/`
-This folder is reserved for the output from scripts and analyses, including intermediate data files, figures, and serialized models.
+### `figures/`
+All visual outputs from our scripts are saved here. This directory contains graphs, charts, and other graphical representations that summarize our findings and insights.
 
 ### `reports/`
-You can find the detailed project reports here, which include methodology, results, and discussions on the findings.
+This directory features detailed project reports which include methodology, results, and discussions on the findings. These reports are intended for sharing with stakeholders and the academic community.
 
-### `makefile`
-An automation tool to run scripts that compile the entire project or specific parts, ensuring that all dependencies are correctly accounted for.
 
-## Getting Started
-To get started with this project:
+## How to Use
+To use this repository:
 
-1. Clone the repository to your local machine.
-2. Ensure you have the required dependencies installed (listed in `requirements.txt`).
-3. Explore the `data/` directory to get acquainted with the datasets.
-4. Navigate to the `src/` directory and run the scripts to reproduce the analysis.
-5. Review the reports in the `reports/` directory for comprehensive insights.
+- Clone the repository to your local machine.
+- Ensure that you have R and the necessary packages installed.
+- Run the scripts in the src/ directory to set up the environment.
+- Execute analysis scripts from the analyses/ directory to reproduce findings or to conduct new analyses.
+- Contributing
 
-## Dependencies
-List of dependencies and how to install them.
-
-## Contributing
-We welcome contributions from the community. Please refer to the `CONTRIBUTING.md` file for more details on how to submit pull requests, report issues, or request features.
+We welcome contributions from the community, be it in the form of bug fixes, enhancements, or documentation improvements. Please send us a pull request or open an issue to discuss potential changes.
 
 ## License
-This project is licensed under the MIT License - see the `LICENSE` file for details.
-
-## Contact
-For any queries or discussions regarding the project, please open an issue or contact the maintainers directly.
-
-## Acknowledgements
-Thanks to all the contributors who have helped shape this project, and to the institutions and individuals who provided the datasets and resources necessary for this research.
-
-
-
-
-
+This project is licensed under the MIT License - see the LICENSE file for details.
